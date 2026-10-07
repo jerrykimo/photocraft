@@ -2084,3 +2084,8 @@ cameraRaw	Blending	混合
 	Don't show again	不再显示
 	Save failed: {error}	存储失败：{error}
 	Save cancelled	已取消存储
+	Opacity stops	不透明度色标
+	Location	位置
+	Delete opacity stop	删除不透明度色标
+	Add opacity stop	添加不透明度色标
+	Gradient Editor	渐变编辑器

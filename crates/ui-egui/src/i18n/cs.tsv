@@ -2075,3 +2075,8 @@ cameraRaw	Color	Barvy
 	Don't show again	Příště nezobrazovat
 	Save failed: {error}	Uložení se nezdařilo: {error}
 	Save cancelled	Ukládání zrušeno
+	Opacity stops	Zarážky krytí
+	Location	Umístění
+	Delete opacity stop	Odstranit zarážku krytí
+	Add opacity stop	Přidat zarážku krytí
+	Gradient Editor	Editor přechodu

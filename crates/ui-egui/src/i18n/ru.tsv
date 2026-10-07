@@ -2353,3 +2353,8 @@ cameraRaw	Roughness	Неровность
 	Don't show again	Больше не показывать
 	Save failed: {error}	Не удалось сохранить: {error}
 	Save cancelled	Сохранение отменено
+	Opacity stops	Маркеры непрозрачности
+	Click to edit the gradient	Нажмите, чтобы изменить градиент
+	Delete opacity stop	Удалить маркер непрозрачности
+	Add opacity stop	Добавить маркер непрозрачности
+	Gradient Editor	Редактор градиента

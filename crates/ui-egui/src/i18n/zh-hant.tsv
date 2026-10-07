@@ -2053,3 +2053,8 @@ cameraRaw	Blending	混合
 	Don't show again	不再顯示
 	Save failed: {error}	儲存失敗：{error}
 	Save cancelled	已取消儲存
+	Opacity stops	不透明度色標
+	Location	位置
+	Delete opacity stop	刪除不透明度色標
+	Add opacity stop	新增不透明度色標
+	Gradient Editor	漸層編輯器

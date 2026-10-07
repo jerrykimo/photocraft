@@ -2497,3 +2497,7 @@ cameraRaw	Blending	Pembauran
 	Don't show again	Jangan tampilkan lagi
 	Save failed: {error}	Gagal menyimpan: {error}
 	Save cancelled	Penyimpanan dibatalkan
+	Opacity stops	Titik opasitas
+	Delete opacity stop	Hapus titik opasitas
+	Add opacity stop	Tambah titik opasitas
+	Gradient Editor	Editor Gradien

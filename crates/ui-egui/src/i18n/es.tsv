@@ -2150,3 +2150,8 @@ cameraRaw	Amount	Cantidad
 	Don't show again	No volver a mostrar
 	Save failed: {error}	Error al guardar: {error}
 	Save cancelled	Guardado cancelado
+	Opacity stops	Puntos de opacidad
+	Location	Ubicación
+	Delete opacity stop	Eliminar punto de opacidad
+	Add opacity stop	Añadir punto de opacidad
+	Gradient Editor	Editor de degradado

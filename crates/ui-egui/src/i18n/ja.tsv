@@ -2058,3 +2058,8 @@ cameraRaw	Color	カラー
 	Don't show again	次回から表示しない
 	Save failed: {error}	保存に失敗しました: {error}
 	Save cancelled	保存をキャンセルしました
+	Opacity stops	不透明度ストップ
+	Location	位置
+	Delete opacity stop	不透明度ストップを削除
+	Add opacity stop	不透明度ストップを追加
+	Gradient Editor	グラデーションエディター
