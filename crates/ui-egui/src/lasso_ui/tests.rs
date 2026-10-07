@@ -173,3 +173,29 @@ fn real_canvas_alt_clicks_enter_escape_and_resume() {
         assert_eq!(h.state().session.active().unwrap().doc.selection.is_some(), finish != "escape", "{finish}");
     }
 }
+
+/// A lasso press inside the selection still drags the selection (`canvas::selection_drag_kind`),
+/// both through tool events and through the real canvas.
+#[test]
+fn a_drag_inside_the_selection_moves_it() {
+    let mut app = app();
+    app.ui.extras.snap = false;
+    app.run("select.rect", json!({"x": 100, "y": 100, "width": 50, "height": 40})).unwrap();
+    let bounds = |app: &PhotocraftApp| app.session.active().unwrap().doc.selection.as_ref().map(|s| s.content_bounds());
+    event(&mut app, "down", 120.0, 120.0, Modifiers::NONE);
+    event(&mut app, "move", 130.0, 125.0, Modifiers::NONE);
+    event(&mut app, "up", 130.0, 125.0, Modifiers::NONE);
+    assert!(!active(&app));
+    assert_eq!(bounds(&app), Some(photocraft_geom::Rect::new(110, 105, 160, 145)));
+
+    let mut h = harness();
+    h.state_mut().ui.extras.snap = false;
+    h.state_mut().run("select.rect", json!({"x": 100, "y": 100, "width": 50, "height": 40})).unwrap();
+    h.run_steps(1);
+    mouse(&mut h, "down", 120.0, 120.0, Modifiers::NONE);
+    mouse(&mut h, "move", 125.0, 122.0, Modifiers::NONE);
+    mouse(&mut h, "move", 130.0, 125.0, Modifiers::NONE);
+    mouse(&mut h, "up", 130.0, 125.0, Modifiers::NONE);
+    assert!(h.state().drag.is_none());
+    assert_eq!(bounds(h.state()), Some(photocraft_geom::Rect::new(110, 105, 160, 145)));
+}

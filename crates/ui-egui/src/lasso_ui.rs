@@ -20,6 +20,12 @@ pub fn active(app: &PhotocraftApp) -> bool {
     app.drag.as_ref().is_some_and(|d| d.tool == Tool::Lasso && d.lasso.is_some())
 }
 
+/// A lasso drag that moves the selection (started inside it, `canvas::selection_drag_kind`):
+/// the canvas's own selection-move path handles it, this module only feeds it the events.
+fn moving_selection(app: &PhotocraftApp) -> bool {
+    app.drag.as_ref().is_some_and(|d| d.tool == Tool::Lasso && d.sel_move.is_some())
+}
+
 pub fn cancel_stale(app: &mut PhotocraftApp) {
     if app
         .drag
@@ -64,12 +70,20 @@ pub fn commit(app: &mut PhotocraftApp) {
 
 pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: Modifiers) -> bool {
     cancel_stale(app);
-    if app.ui.tool != Tool::Lasso {
+    if app.ui.tool != Tool::Lasso || moving_selection(app) {
         return false;
     }
     let p = match ev {
         ToolEvent::Down { x, y, .. } | ToolEvent::Move { x, y, .. } | ToolEvent::Up { x, y } => [x, y],
     };
+    // A press inside the selection (no outline in progress) drags the selection instead.
+    if matches!(ev, ToolEvent::Down { .. })
+        && !active(app)
+        && p.iter().all(|n| n.is_finite())
+        && crate::canvas::selection_drag_kind(app, Tool::Lasso, p, mods).is_some()
+    {
+        return false;
+    }
     if !p.iter().all(|n| n.is_finite()) {
         return true;
     }
@@ -141,18 +155,18 @@ pub fn canvas_input(app: &mut PhotocraftApp, ctx: &egui::Context, xf: &ViewXform
                 let p = xf.to_doc(pos);
                 if pressed && response.contains_pointer() && response.rect.contains(pos) {
                     Some(ToolEvent::Down { x: p[0], y: p[1], pressure: 1.0 })
-                } else if !pressed && active(app) {
+                } else if !pressed && (active(app) || moving_selection(app)) {
                     Some(ToolEvent::Up { x: p[0], y: p[1] })
                 } else {
                     None
                 }
             }
-            Event::PointerMoved(pos) if active(app) => {
+            Event::PointerMoved(pos) if active(app) || moving_selection(app) => {
                 let p = xf.to_doc(pos);
                 Some(ToolEvent::Move { x: p[0], y: p[1], pressure: 1.0 })
             }
             Event::WindowFocused(false) => {
-                if active(app) {
+                if active(app) || moving_selection(app) {
                     app.drag = None;
                 }
                 None
