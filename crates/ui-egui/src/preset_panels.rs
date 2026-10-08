@@ -22,8 +22,6 @@ use crate::theme::Tokens;
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PresetUi {
-    /// Floating Gradient Editor opened from the options-bar swatch.
-    pub gradient_editor: bool,
     /// Floating panels.
     pub styles: bool,
     pub shapes: bool,
