@@ -499,6 +499,11 @@
 	Default colours (D)	Цвета по умолчанию (D)
 	Brush Tool Options	Параметры кисти
 	Opacity	Непрозрачность
+	Opacity stops	Маркеры непрозрачности
+	Click to edit the gradient	Нажмите, чтобы изменить градиент
+	Delete opacity stop	Удалить маркер непрозрачности
+	Add opacity stop	Добавить маркер непрозрачности
+	Gradient Editor	Редактор градиента
 	Flow	Нажим
 	Smoothing	Сглаживание
 	Size	Размер
@@ -2369,8 +2374,3 @@ cameraRaw	Roughness	Неровность
 	Magnetic Lasso Tool	Магнитное лассо
 	Frequency	Частота
 	Use tablet pressure to change pen width	Использовать нажим планшета для изменения ширины пера
-	Opacity stops	Маркеры непрозрачности
-	Click to edit the gradient	Нажмите, чтобы изменить градиент
-	Delete opacity stop	Удалить маркер непрозрачности
-	Add opacity stop	Добавить маркер непрозрачности
-	Gradient Editor	Редактор градиента
