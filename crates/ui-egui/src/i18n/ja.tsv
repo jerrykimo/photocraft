@@ -2076,3 +2076,8 @@ cameraRaw	Color	カラー
 	Magnetic Lasso Tool	マグネット選択ツール
 	Frequency	頻度
 	Use tablet pressure to change pen width	タブレットの筆圧を使用してペンの幅を変更
+	Opacity stops	不透明度ストップ
+	Location	位置
+	Delete opacity stop	不透明度ストップを削除
+	Add opacity stop	不透明度ストップを追加
+	Gradient Editor	グラデーションエディター

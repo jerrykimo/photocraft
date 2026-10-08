@@ -2101,3 +2101,8 @@ cameraRaw	Blending	混合
 	Magnetic Lasso Tool	磁性套索工具
 	Frequency	频率
 	Use tablet pressure to change pen width	使用绘图板压力以更改钢笔宽度
+	Opacity stops	不透明度色标
+	Location	位置
+	Delete opacity stop	删除不透明度色标
+	Add opacity stop	添加不透明度色标
+	Gradient Editor	渐变编辑器
