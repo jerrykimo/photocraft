@@ -154,12 +154,7 @@ fn dispatch(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest) 
         "ui.context.choose" => {
             let Some(id) = s("id") else { return err("missing `id`") };
             let Some(menu) = app.ui.canvas_tool_menu.as_ref() else { return err("no canvas context menu is open") };
-            let listed = if menu.tool == crate::state::Tool::Pen {
-                crate::canvas_tool_menu::PEN_MENU.iter().flatten().any(|(_, command)| *command == id)
-            } else {
-                crate::canvas_tool_menu::menu_entries(menu).iter().any(|(_, command)| *command == id)
-            };
-            if !listed || !crate::canvas_tool_menu::entry_enabled(app, menu, id) {
+            if !crate::canvas_tool_menu::available(app, menu, id) {
                 return err("context action is unavailable");
             }
             if let Some(authorize) = app.services.automation_command.as_ref()
@@ -411,8 +406,10 @@ fn dispatch(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest) 
             None => err("no such dialog"),
         },
         "ui.window.open" => {
-            if let Some(d) = u("document") {
-                app.session.set_active(d as usize);
+            if let Some(d) = u("document")
+                && !app.session.set_active(d as usize)
+            {
+                return err(format!("no document {d}"));
             }
             wrap(crate::menus::invoke(app, ctx, "window.newWindowForDocument", json!({})))
         }
@@ -623,16 +620,10 @@ pub fn inspect(app: &PhotocraftApp, ctx: &egui::Context) -> Value {
             json!({
                 "pos": menu.pos,
                 "tool": menu.tool,
-                "entries": if menu.tool == crate::state::Tool::Pen {
-                    crate::canvas_tool_menu::PEN_MENU.iter().map(|row| match row {
-                        Some((label, id)) => json!({"label": label, "id": id, "enabled": crate::canvas_tool_menu::entry_enabled(app, menu, id)}),
-                        None => json!({"separator": true}),
-                    }).collect::<Vec<_>>()
-                } else {
-                    crate::canvas_tool_menu::menu_entries(menu).iter().map(|&(label, id)| {
-                        json!({"label": label, "id": id, "enabled": crate::canvas_tool_menu::entry_enabled(app, menu, id)})
-                    }).collect::<Vec<_>>()
-                }
+                "entries": crate::canvas_tool_menu::rows(menu).iter().map(|row| match row {
+                    Some((label, id)) => json!({"label": label, "id": id, "enabled": crate::canvas_tool_menu::entry_enabled(app, menu, id)}),
+                    None => json!({"separator": true}),
+                }).collect::<Vec<_>>()
             })
         }),
         "panels": app.ui.panels,
@@ -830,6 +821,22 @@ mod tests {
             assert_eq!(app.ui.theme, kind);
             assert_eq!(ThemeKind::from_name(kind.id()), Some(kind));
         }
+    }
+
+    #[test]
+    fn ui_window_open_rejects_an_unknown_document_index() {
+        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let ctx = egui::Context::default();
+        app.run("file.new", json!({"width": 8, "height": 8})).unwrap();
+        // An out-of-range index must error instead of silently switching the active document
+        // and opening the window for whatever is active now.
+        let before = app.session.active_index();
+        let r = call(&mut app, &ctx, "ui.window.open", json!({"document": 99}));
+        assert_eq!(r["ok"], false, "{r}");
+        assert!(r["error"].as_str().unwrap().contains("no document 99"), "{r}");
+        assert_eq!(app.session.active_index(), before, "the active document is untouched");
+        // A valid index still opens the window.
+        assert_eq!(call(&mut app, &ctx, "ui.window.open", json!({"document": 0}))["ok"], true);
     }
 
     #[test]

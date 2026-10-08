@@ -286,6 +286,14 @@ pub(crate) fn invoke_unguarded(app: &mut PhotocraftApp, ctx: &egui::Context, id:
             app.set_theme(ctx, k);
             Ok(Value::Null)
         }
+        // The macOS app menu's Language (`native_menu::language_node`).
+        i if i.starts_with(crate::native_menu::LANGUAGE_PREFIX) => {
+            let code = &i[crate::native_menu::LANGUAGE_PREFIX.len()..];
+            if code != "auto" && !crate::i18n::Lang::all().any(|l| l.code() == code) {
+                return Err(format!("unknown UI language `{code}`"));
+            }
+            app.run("prefs.set", json!({"values": {"interface.language": code}}))
+        }
         "edit.search" => {
             app.ui.palette_open = !app.ui.palette_open;
             Ok(Value::Null)
@@ -503,6 +511,8 @@ pub fn is_enabled(app: &PhotocraftApp, id: &str) -> bool {
             .and_then(|s| s.active_layer.and_then(|id| s.doc.layer(id)))
             .is_some_and(|l| matches!(l.content, photocraft_doc::LayerContent::Text(_))),
         "select.transformSelection" => app.ui.transform.is_none() && app.session.is_enabled("select.transformSelection"),
+        // ⇧[ / ⇧] only step the hardness of a tool that paints with the brush tip, as in Photoshop.
+        "tools.decreaseBrushHardness" | "tools.increaseBrushHardness" => app.ui.tool.is_brushlike(),
         i if (i.starts_with("view.zoom") || i == "view.fitOnScreen" || i == "view.actualPixels") || i == "window.newWindowForDocument" => {
             app.session.active().is_some()
         }
@@ -516,13 +526,20 @@ pub fn is_enabled(app: &PhotocraftApp, id: &str) -> bool {
             Some(t) => t.warp.is_none(),
             None => app.session.active().and_then(|s| s.active_layer).is_some(),
         },
-        i => app.session.is_enabled(i),
+        // A targeted layer mask enables what edits it (Invert on an adjustment layer's mask).
+        i => app.session.is_enabled_with(i, &app.with_mask_target(i, Value::Null)),
     }
 }
+
+/// Image › Mode items that carry a checkmark.
+const MODE_CHECKS: [&str; 11] = ["rgb", "grayscale", "cmyk", "lab", "multichannel", "indexedColor", "bitmap", "duotone", "bits8", "bits16", "bits32"];
 
 /// Is a UI-level panel toggle currently on (for checkmarks)?
 fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
     use photocraft_doc::{ColorMode, SampleType};
+    if let Some(name) = id.strip_prefix("window.theme.").filter(|n| *n != "toggle") {
+        return Some(crate::theme::ThemeKind::from_name(name) == Some(app.ui.theme));
+    }
     if let Some(c) = crate::view_cmds::checked(app, id) {
         return Some(c);
     }
@@ -541,11 +558,13 @@ fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
     if let Some(alias) = panel_alias(id) {
         return checked(app, alias);
     }
+    // Check items stay check items with no document open (`Some(false)`, not `None`): a native
+    // menu can't change an item's kind in place, so a change would rebuild the whole menu.
     if id == "select.isolateLayers" {
-        return Some(!app.session.active()?.isolated_layers.is_empty());
+        return Some(app.session.active().is_some_and(|d| !d.isolated_layers.is_empty()));
     }
     if id == "view.proofColors" || id == "view.gamutWarning" {
-        let d = app.session.active()?;
+        let Some(d) = app.session.active() else { return Some(false) };
         let pv = app.session.color.proof(d.doc.id);
         return Some(if id == "view.proofColors" { pv.enabled } else { pv.gamut_warning });
     }
@@ -554,7 +573,9 @@ fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
         return Some(app.ui.workspace == if want.is_empty() { "Essentials" } else { want });
     }
     if let Some(m) = id.strip_prefix("image.mode.") {
-        let d = &app.session.active()?.doc;
+        let Some(d) = app.session.active().map(|s| &s.doc) else {
+            return MODE_CHECKS.contains(&m).then_some(false);
+        };
         return match m {
             "rgb" => Some(d.mode == ColorMode::Rgb),
             "grayscale" => Some(d.mode == ColorMode::Grayscale),
@@ -636,7 +657,9 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             id: id.to_string(),
             label: label.to_string(),
             path: path.iter().map(|s| s.to_string()).collect(),
-            shortcut: sc.map(Into::into),
+            // A live item shows the shortcut that runs it ([`crate::shortcut_dispatch::bindings`]
+            // prefers the command's own over the catalogue's): Undo ⌘Z, Copy ⌘C, Hide Layers ⌘,.
+            shortcut: if known(id) { crate::shortcuts::default_shortcut(id) } else { sc.map(Into::into) },
             enabled: known(id) && is_enabled(app, id),
             checked: checked(app, id),
             color: None,
@@ -981,12 +1004,18 @@ fn render_level(ui: &mut egui::Ui, items: &[&MenuItem], depth: usize, clicked: &
     crate::menu_nav::level(ui, depth, nav, |ui, nav| render_level_rows(ui, items, depth, clicked, nav));
 }
 
+/// Height of a menu separator: a line with room above and below, as in native menus.
+const MENU_SEPARATOR: f32 = 9.0;
+
 fn render_level_rows(ui: &mut egui::Ui, items: &[&MenuItem], depth: usize, clicked: &mut Option<String>, nav: &mut crate::menu_nav::Nav) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let lang = crate::i18n::current();
     // Items never wrap: the menu widens to its longest label plus shortcut (translations can be
     // longer than the English).
     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+    // Rows touch, as in native menus: the dialog spacing between them made long menus a fifth
+    // taller than they need to be (#402).
+    ui.spacing_mut().item_spacing.y = 0.0;
     if t.pro {
         // Spectrum/macOS menus: blue highlight row with white text.
         let v = &mut ui.style_mut().visuals;
@@ -1004,7 +1033,7 @@ fn render_level_rows(ui: &mut egui::Ui, items: &[&MenuItem], depth: usize, click
         if it.path.len() == depth {
             if it.label == "---" {
                 if !last_was_sep && i + 1 < items.len() {
-                    ui.separator();
+                    ui.add(egui::Separator::default().spacing(MENU_SEPARATOR));
                     last_was_sep = true;
                 }
                 continue;
@@ -1103,11 +1132,12 @@ mod tests {
         app.run("select.rect", json!({"x": 2, "y": 2, "width": 8, "height": 8})).unwrap();
         let items = menu_items(&app);
         let top: Vec<_> = items.iter().filter(|i| i.path.len() == 1 && i.path.first().is_some_and(|p| p == "Select")).collect();
-        // Context actions live somewhere under Select (Feather stays in Select > Modify, as in the
-        // reference menus).
+        // The context menus' Select actions live somewhere under Select (Feather stays in Select >
+        // Modify, as in the reference menus). Make Work Path is a Paths panel action.
         let select: Vec<_> = items.iter().filter(|i| i.path.first().is_some_and(|p| p == "Select")).collect();
-        for &(label, id) in crate::canvas_tool_menu::entries(true).iter().chain(crate::canvas_tool_menu::entries(false)) {
-            assert!(select.iter().any(|i| i.id == id && i.label == label), "Select menu missing {label} ({id})");
+        let rows = crate::canvas_tool_menu::SELECTION_MENU.iter().chain(crate::canvas_tool_menu::NO_SELECTION_MENU).flatten();
+        for &(label, id) in rows.filter(|(_, id)| id.starts_with("select.") && *id != "select.toWorkPath") {
+            assert!(select.iter().any(|i| i.id == id), "Select menu missing {label} ({id})");
         }
         assert!(top.iter().any(|i| i.id == "select.all"));
         assert!(top.iter().any(|i| i.id == "select.colorRange"));
@@ -1256,6 +1286,10 @@ mod tests {
             let font = egui::TextStyle::Button.resolve(&harness.ctx.global_style()).size;
             assert!(a.height() >= font + 8.0, "{theme:?}: item height {} for a {font} pt font", a.height());
             assert!(b.top() - a.top() >= font + 10.0, "{theme:?}: rows {} apart", b.top() - a.top());
+            // #402: rows touch (no dialog spacing between them), so long menus fit the window.
+            let next = harness.get_by_label_contains("New from Clipboard").rect();
+            assert!((next.top() - a.bottom()).abs() < 0.5, "{theme:?}: {} pt between rows", next.top() - a.bottom());
+            assert!(next.top() - a.top() <= 24.5, "{theme:?}: rows {} apart", next.top() - a.top());
         }
     }
 
